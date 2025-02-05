@@ -1,4 +1,4 @@
-name: Deployement
+name: Deploy
 on:
   push:
     branches: [master]
@@ -56,19 +56,19 @@ jobs:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.11.0
         with:
-          access_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # حذف `workflows` السابقة لتوفير مساحة
       - name: Delete Previous Workflows
         run: |
-          WORKFLOWS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          WORKFLOWS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs" \
             | jq -r '.workflow_runs[] | select(.status == "completed" and .id != ${{ github.run_id }}) | .id')
           
           if [[ -n "$WORKFLOWS" ]]; then
             for workflow_id in $WORKFLOWS; do
               echo "Deleting workflow run ID: $workflow_id"
-              curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              curl -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                 "https://api.github.com/repos/${{ github.repository }}/actions/runs/$workflow_id"
             done
           else
