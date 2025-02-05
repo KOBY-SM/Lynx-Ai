@@ -1,4 +1,4 @@
- // *[ ❀ FACEBOOK DL ]*
+ // *[ ❀ FACEBOO DL ]*
 import { igdl } from 'ruhend-scraper';
 import axios from 'axios';
 
