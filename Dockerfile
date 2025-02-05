@@ -14,6 +14,8 @@ RUN npm install && npm start
 
 COPY . .
 
+RUN npm start
+
 EXPOSE 5000
 
 CMD ["npm","start"]
