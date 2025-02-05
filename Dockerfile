@@ -10,12 +10,10 @@ RUN apt-get update && \
 
 COPY package.json .
 
-RUN npm install && npm start 
+RUN npm install 
 
 COPY . .
-
-RUN npm start
-
+RUN npm start 
 EXPOSE 5000
 
-CMD ["npm","start"]
+CMD ["node", "index.js", "--server"]
