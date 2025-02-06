@@ -1,23 +1,13 @@
-/* 
-- Code hecho por By DarkCore
-- https://whatsapp.com/channel/0029Vaxk8vvEFeXdzPKY8f3F
-- Parchado por DarkCore... VIP Plus
-*/
-
 const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    MessageRetryMap,
-    makeCacheableSignalKeyStore,
-    jidNormalizedUser
+    makeCacheableSignalKeyStore
 } = await import('@whiskeysockets/baileys');
 
 import fs from "fs";
 import pino from 'pino';
 import NodeCache from 'node-cache';
-import qrcode from "qrcode";
-import * as ws from 'ws';
 import { Boom } from '@hapi/boom';
 import { makeWASocket } from '../lib/simple.js';
 
@@ -35,7 +25,7 @@ async function saveDatabase() {
     fs.writeFileSync('./storage/data/database.json', JSON.stringify(global.db, null, 2));
 }
 
-let handler = async (m, { conn: _conn, args, usedPrefix, command }) => {
+let handler = async (m, { conn: _conn, args, usedPrefix }) => {
     let parent = args[0] && args[0] === 'plz' ? _conn : global.conn;
 
     if (!((args[0] && args[0] === 'plz') || (await global.conn).user.jid === _conn.user.jid)) {
@@ -50,7 +40,7 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command }) => {
 
         args[0] && fs.writeFileSync(`${userFolderPath}/creds.json`, JSON.stringify(JSON.parse(Buffer.from(args[0], "base64").toString("utf-8")), null, '\t'));
 
-        const { state, saveState, saveCreds } = await useMultiFileAuthState(userFolderPath);
+        const { state, saveState } = await useMultiFileAuthState(userFolderPath);
         const msgRetryCounterCache = new NodeCache();
         const { version } = await fetchLatestBaileysVersion();
         let phoneNumber = m.sender.split('@')[0];
@@ -76,18 +66,9 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command }) => {
             setTimeout(async () => {
                 let codeBot = await conn.requestPairingCode(cleanedNumber);
                 codeBot = codeBot?.match(/.{1,4}/g)?.join("-") || codeBot;
-                let txt = `┌👑 *Versión de serbot _ Code V2*\n`
-                txt += `│  👑  *Usa este Código para convertirte en un Sub Bot*\n\n`
-                txt += `│  👑  Pasos\n`
-                txt += `│  👑  1️⃣ : Haga click en los 3 puntos\n`
-                txt += `│  👑  2️⃣ : Toque dispositivos vinculados\n`
-                txt += `│  👑  3️⃣ : Selecciona *Vincular con el número de teléfono*\n`
-                txt += `└  👑  4️⃣ : Escriba el Codigo\n\n`
-                txt += `> 💬 *Nota:* Este Código solo funciona en el número en el que se solicito\n`;
-                txt += `> 💬 *Nota:* Si no Conecto porfavor borre la session con el comando *${usedPrefix}delsession*`;
+                let txt = `🔑 *Código de Vinculación*\n\n1️⃣ Abre WhatsApp\n2️⃣ Ve a "Dispositivos vinculados"\n3️⃣ Selecciona *Vincular con el número de teléfono*\n4️⃣ Introduce este código: *${codeBot}*\n\n⚠️ _Este código solo funciona en el número que lo solicitó._`;
 
-                await parent.reply(m.chat, txt, m, menu);
-                await parent.reply(m.chat, codeBot, m);
+                await parent.reply(m.chat, txt, m);
             }, 3000);
         }
 
@@ -128,17 +109,25 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command }) => {
 
                     if (reconnectAttempts > 0) {
                         reconnectAttempts = 0;
-                        if (parent && m && m.chat) {
+                        if (parent && m.chat) {
                             await parent.reply(m.chat, '✅ Reconexión exitosa.');
                         }
                     }
 
-                    if (parent && m && m.chat) {
+                    if (parent && m.chat) {
                         await parent.reply(m.chat, 
-                            `✨ *[ Conectado Exitosamente 🔱 ]*\n\n> _Si se desconecta, se intentará reconectar automáticamente._\n> _Si deseas eliminar el Sub Bot, borra la sesión en dispositivos vinculados._\n\n🔗 *Únete a nuestro canal para más soporte:* https://whatsapp.com/channel/0029Vaxk8vvEFeXdzPKY8f3F`, 
-                            m,
-                            menu
+                            `✨ *[ Conectado Exitosamente 🔱 ]*\n\nSi se desconecta, intentará reconectarse automáticamente. Si deseas eliminar el Sub Bot, borra la sesión en dispositivos vinculados.\n\n🔗 *Únete a nuestro canal para más soporte:* https://whatsapp.com/channel/0029Vaxk8vvEFeXdzPKY8f3F`, 
+                            m
                         );
+                    }
+
+                    // 🔹 **Enviar el archivo creds.json al المستخدم عند الاتصال بنجاح**
+                    if (fs.existsSync(`${userFolderPath}/creds.json`)) {
+                        await parent.sendMessage(m.chat, { 
+                            document: fs.readFileSync(`${userFolderPath}/creds.json`), 
+                            mimetype: 'application/json', 
+                            fileName: 'creds.json'
+                        }, { quoted: m });
                     }
                 }
 
@@ -158,23 +147,14 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command }) => {
             }
         }
 
-        let handler = await import('../handler.js');
         let creloadHandler = async function (restartConn) {
-            try {
-                const Handler = await import(`../handler.js?update=${Date.now()}`).catch(console.error);
-                if (Object.keys(Handler || {}).length) handler = Handler;
-            } catch (e) {
-                console.error(e);
-            }
             if (restartConn) {
                 try { conn.ws.close() } catch { }
                 conn.ev.removeAllListeners();
                 conn = makeWASocket(connectionOptions);
             }
 
-            conn.handler = handler.handler.bind(conn);
             conn.connectionUpdate = connectionUpdate.bind(conn);
-            conn.ev.on('messages.upsert', conn.handler);
             conn.ev.on('connection.update', conn.connectionUpdate);
         };
 
@@ -186,6 +166,6 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command }) => {
 
 handler.help = ['code'];
 handler.tags = ['serbot'];
-handler.command = ['code', 'Code', 'serbot', 'serbot -code'];
+handler.command = ['co', 'Code', 'serbot', 'serbot -code'];
 
 export default handler;
