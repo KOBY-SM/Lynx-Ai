@@ -1,4 +1,4 @@
-FROM node:lts-buster
+FROM node:20.18.2-bookworm-slim
 
 RUN apt-get update && \
   apt-get install -y \
